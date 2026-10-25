@@ -32,12 +32,19 @@ export function runFenceGuard(check: RunFenceCheck | undefined): SqlCondition | 
 }
 
 /** Throws `RunFenceConflictError` unless the check's fence is the run's current claim. */
-export async function assertRunFence(db: DODB, { claimsTable, fence, operation }: RunFenceCheck): Promise<void> {
-  const row = (await db.executeQuery({
+export async function assertRunFence(db: DODB, check: RunFenceCheck): Promise<void> {
+  assertRunFenceSync(db, check);
+}
+
+/**
+ * {@link assertRunFence} without yielding, for a write that checks the claim and writes in one
+ * synchronous section.
+ */
+export function assertRunFenceSync(db: DODB, { claimsTable, fence, operation }: RunFenceCheck): void {
+  const [row] = db.querySync({
     sql: `SELECT generation, ownerId FROM ${claimsTable} WHERE runId = ?`,
     params: [fence.runId],
-    first: true,
-  })) as Record<string, unknown> | null;
+  });
   const current = row ? { generation: Number(row.generation), ownerId: String(row.ownerId) } : null;
   if (!matchesRunFence(current, fence)) {
     throw new RunFenceConflictError(fence, operation);

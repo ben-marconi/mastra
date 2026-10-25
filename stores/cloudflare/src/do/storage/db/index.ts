@@ -104,19 +104,19 @@ export class DODB extends MastraBase {
   }
 
   async executeQuery(options: SqlQueryOptions): Promise<Record<string, unknown>[] | Record<string, unknown> | null> {
-    const { sql, params = [], first = false } = options;
+    const rows = this.querySync(options);
+    return options.first ? rows[0] || null : rows;
+  }
 
+  /**
+   * Runs one statement and returns its rows without yielding. A Durable Object runs one event at
+   * a time, so statements run back to back through this method, with no `await` in between, see
+   * no other writer's changes in between.
+   */
+  querySync({ sql, params = [] }: SqlQueryOptions): Record<string, unknown>[] {
     try {
-      const formattedParams = this.formatSqlParams(params);
       // SqlStorage.exec() is synchronous and returns a SqlStorageCursor
-      const cursor = this.sql.exec(sql, ...formattedParams);
-
-      if (first) {
-        const rows = cursor.toArray();
-        return rows[0] || null;
-      }
-
-      return cursor.toArray();
+      return this.sql.exec(sql, ...this.formatSqlParams(params)).toArray();
     } catch (error) {
       throw new MastraError(
         {

@@ -187,6 +187,10 @@ Unlike KV, Durable Objects provide strong consistency guarantees. All reads and 
 
 Durable Objects storage uses SQLite under the hood, enabling efficient queries, filtering, and pagination that aren't possible with key-value storage.
 
+### Observational memory
+
+`CloudflareDOStorage` supports [observational memory](/docs/memory/observational-memory), including async buffering. Observations are stored in the Durable Object's own SQLite database, next to the thread's messages, in a `mastra_observational_memory` table that `init()` creates. Durable Objects created before this table existed get it the next time storage initializes. `CloudflareKVStorage` doesn't support observational memory.
+
 ## Schema Management
 
 Both storage implementations handle schema creation and updates automatically. They create the following tables:

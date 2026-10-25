@@ -7240,6 +7240,9 @@ importers:
       '@cloudflare/workers-types':
         specifier: ^4.20260702.1
         version: 4.20260702.1
+      '@internal/core':
+        specifier: workspace:*
+        version: link:../../packages/_internal-core
       '@internal/lint':
         specifier: workspace:*
         version: link:../../packages/_config

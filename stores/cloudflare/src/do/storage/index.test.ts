@@ -1,8 +1,13 @@
 import { DatabaseSync } from 'node:sqlite';
 import type { SQLInputValue } from 'node:sqlite';
 
-import { createRunFencingTests } from '@internal/storage-test-utils';
-import { beforeAll, describe, vi } from 'vitest';
+import {
+  createMessagesListIncludeResourceScopeTest,
+  createObservationalMemoryTest,
+  createRunFencingTests,
+} from '@internal/storage-test-utils';
+import type { MemoryStorage } from '@mastra/core/storage';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { CloudflareDOStorage } from '../index';
 
@@ -28,10 +33,31 @@ function createSqlStorage() {
 
 describe('CloudflareDOStorage', () => {
   const storage = new CloudflareDOStorage({ sql: createSqlStorage() as never, tablePrefix: 'test_' });
+  let memory: MemoryStorage;
 
   beforeAll(async () => {
     await storage.init();
+    memory = (await storage.getStore('memory'))!;
   });
 
   createRunFencingTests({ storage });
+
+  // Memory turns observational memory off for a store that doesn't declare support, and the shared
+  // suite below skips such a store, so neither would notice the Durable Objects store losing it.
+  it('keeps observational memory for an agent whose memory lives in a Durable Object', async () => {
+    expect(memory.supportsObservationalMemory).toBe(true);
+    const record = await memory.initializeObservationalMemory({
+      threadId: 'thread-in-durable-object',
+      resourceId: 'user-in-durable-object',
+      scope: 'thread',
+      config: {},
+    });
+    expect((await memory.getObservationalMemory('thread-in-durable-object', 'user-in-durable-object'))?.id).toBe(
+      record.id,
+    );
+  });
+
+  createObservationalMemoryTest({ storage });
+
+  createMessagesListIncludeResourceScopeTest({ getMemoryStorage: () => memory });
 });
